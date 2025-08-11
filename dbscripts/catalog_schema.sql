@@ -18,11 +18,23 @@ CREATE TABLE category (
 );
 
 -- =========================================================
+-- Table: product_group
+-- Groups similar products (e.g., same model, different color/size)
+-- =========================================================
+CREATE TABLE product_group (
+    group_id CHAR(36) PRIMARY KEY, -- UUID
+    group_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================================
 -- Table: product
--- Core product details
+-- Everything is a product; grouped via group_id; filterable by attributes
 -- =========================================================
 CREATE TABLE product (
     product_id CHAR(36) PRIMARY KEY, -- UUID stored as string
+    group_id CHAR(36), -- FK to product_group
     title VARCHAR(255) NOT NULL,
     brand VARCHAR(100),
     model_number VARCHAR(100),
@@ -38,76 +50,41 @@ CREATE TABLE product (
     rating DECIMAL(2,1) DEFAULT 0.0,
     release_date DATE,
     category_id BIGINT,
+    color VARCHAR(50),  -- Attribute filtering
+    size VARCHAR(50),   -- Could be 'M', '9', '256GB', etc.
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES category(category_id)
+    FOREIGN KEY (category_id) REFERENCES category(category_id),
+    FOREIGN KEY (group_id) REFERENCES product_group(group_id)
 );
 
 -- =========================================================
--- Table: product_variant
--- Handles color, RAM, storage combinations
+-- Table: product_media
+-- Product media
 -- =========================================================
-CREATE TABLE product_variant (
-    variant_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE product_media (
+    media_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     product_id CHAR(36) NOT NULL,
-    color VARCHAR(50),
-    ram VARCHAR(50),
-    storage VARCHAR(50),
-    price DECIMAL(10,2) NOT NULL,
-    discounted_price DECIMAL(10,2),
-    stock_quantity INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES product(product_id)
-);
-
--- =========================================================
--- Table: product_image
--- Product & variant images
--- =========================================================
-CREATE TABLE product_image (
-    image_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    product_id CHAR(36) NOT NULL,
-    variant_id BIGINT DEFAULT NULL,
-    image_url VARCHAR(500) NOT NULL,
+    media_url VARCHAR(500) NOT NULL,
     thumbnail_url VARCHAR(500),
     sort_order INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES product(product_id),
-    FOREIGN KEY (variant_id) REFERENCES product_variant(variant_id)
-);
-
--- =========================================================
--- Table: product_tag
--- Tags like AMOLED, 120Hz, etc.
--- =========================================================
-CREATE TABLE product_tag (
-    tag_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL
-);
-
--- =========================================================
--- Table: product_tag_map
--- Many-to-many relationship between product and tags
--- =========================================================
-CREATE TABLE product_tag_map (
-    product_id CHAR(36) NOT NULL,
-    tag_id BIGINT NOT NULL,
-    PRIMARY KEY (product_id, tag_id),
-    FOREIGN KEY (product_id) REFERENCES product(product_id),
-    FOREIGN KEY (tag_id) REFERENCES product_tag(tag_id)
-);
-
--- =========================================================
--- Table: product_audit_log
--- For tracking admin changes
--- =========================================================
-CREATE TABLE product_audit_log (
-    log_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    product_id CHAR(36) NOT NULL,
-    admin_user VARCHAR(100) NOT NULL,
-    action VARCHAR(50) NOT NULL,
-    change_details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES product(product_id)
 );
+
+CREATE TABLE product_attribute (
+     attribute_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+     name VARCHAR(50) NOT NULL,          -- e.g., 'RAM', 'Display Size', 'Feature'
+     value_type ENUM('STRING','NUMBER') NOT NULL DEFAULT 'STRING' -- type of value
+ );
+
+ CREATE TABLE product_attribute_value (
+     product_id CHAR(36) NOT NULL,
+     attribute_id BIGINT NOT NULL,
+     value_string VARCHAR(255) DEFAULT NULL,  -- for 'AMOLED', 'Blue'
+     value_number DECIMAL(10,2) DEFAULT NULL, -- for RAM=8, size=6.5
+     PRIMARY KEY (product_id, attribute_id),
+     FOREIGN KEY (product_id) REFERENCES product(product_id),
+     FOREIGN KEY (attribute_id) REFERENCES product_attribute(attribute_id)
+ );
+
