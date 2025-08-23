@@ -1,0 +1,14 @@
+package com.example.customer.repository;
+
+import com.example.customer.domain.Address;
+import com.example.customer.domain.Customer;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface AddressRepository extends JpaRepository<Address, Long> {
+    List<Address> findByCustomer(Customer customer);
+    long countByCustomer(Customer customer);
+    Optional<Address> findByIdAndCustomer(Long id, Customer customer);
+}
