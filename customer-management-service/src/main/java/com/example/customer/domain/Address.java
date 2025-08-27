@@ -1,11 +1,22 @@
 package com.example.customer.domain;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import java.time.Instant;
 
 @Entity
 @Table(name = "addresses",
         indexes = { @Index(name = "idx_addresses_customer_id", columnList = "customer_id") })
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Address {
 
     @Id
@@ -43,26 +54,4 @@ public class Address {
 
     @Column(name = "updated_at", insertable = false)
     private Instant updatedAt;
-
-    // getters/setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id= id; }
-    public Customer getCustomer() { return customer; }
-    public void setCustomer(Customer customer) { this.customer = customer; }
-    public String getLine1() { return line1; }
-    public void setLine1(String line1) { this.line1 = line1; }
-    public String getLine2() { return line2; }
-    public void setLine2(String line2) { this.line2 = line2; }
-    public String getCity() { return city; }
-    public void setCity(String city) { this.city = city; }
-    public String getState() { return state; }
-    public void setState(String state) { this.state = state; }
-    public String getPostalCode() { return postalCode; }
-    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
-    public String getCountry() { return country; }
-    public void setCountry(String country) { this.country = country; }
-    public boolean isDefault() { return isDefault; }
-    public void setDefault(boolean aDefault) { isDefault = aDefault; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
 }

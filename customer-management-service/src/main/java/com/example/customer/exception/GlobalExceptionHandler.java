@@ -1,92 +1,4 @@
 package com.example.customer.exception;
-//
-//import com.example.exception.ResourceNotFoundException;
-//import org.springframework.http.HttpHeaders;
-//import org.springframework.http.HttpStatus;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.validation.FieldError;
-//import org.springframework.web.bind.MethodArgumentNotValidException;
-//import org.springframework.web.bind.annotation.ExceptionHandler;
-//import org.springframework.web.bind.annotation.ControllerAdvice;
-//import org.springframework.web.context.request.WebRequest;
-//import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-//import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-//
-//import java.time.LocalDateTime;
-//import java.util.HashMap;
-//import java.util.Map;
-//import java.util.stream.Collectors;
-//
-//@ControllerAdvice
-//public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
-//
-//    // 1. Handle validation errors (@Valid DTOs)
-////    @Override
-//    protected ResponseEntity<Object> handleMethodArgumentNotValid(
-//            MethodArgumentNotValidException ex,
-//            HttpHeaders headers,
-//            HttpStatus status,
-//            WebRequest request) {
-//
-//        Map<String, Object> body = new HashMap<>();
-//        body.put("timestamp", LocalDateTime.now());
-//        body.put("status", HttpStatus.BAD_REQUEST.value());
-//        body.put("error", "Validation Failed");
-//
-//        Map<String, String> fieldErrors = ex.getBindingResult()
-//                .getFieldErrors()
-//                .stream()
-//                .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage, (a, b) -> a));
-//
-//        body.put("fieldErrors", fieldErrors);
-//
-//        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
-//    }
-//
-//    // 2. Handle invalid path variables or query params
-//    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-//    public ResponseEntity<Object> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-//        Map<String, Object> body = new HashMap<>();
-//        body.put("timestamp", LocalDateTime.now());
-//        body.put("status", HttpStatus.BAD_REQUEST.value());
-//        body.put("error", "Invalid Parameter");
-//        body.put("message", "Parameter '" + ex.getName() + "' must be of type " + ex.getRequiredType().getSimpleName());
-//        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
-//    }
-//
-//    // 3. Handle custom NotFoundException
-//    @ExceptionHandler(ResourceNotFoundException.class)
-//    public ResponseEntity<Object> handleResourceNotFound(ResourceNotFoundException ex) {
-//        Map<String, Object> body = new HashMap<>();
-//        body.put("timestamp", LocalDateTime.now());
-//        body.put("status", HttpStatus.NOT_FOUND.value());
-//        body.put("error", "Resource Not Found");
-//        body.put("message", ex.getMessage());
-//        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
-//    }
-//
-//    // 4. Handle IllegalArgument / Business Logic Errors
-//    @ExceptionHandler(IllegalArgumentException.class)
-//    public ResponseEntity<Object> handleIllegalArgument(IllegalArgumentException ex) {
-//        Map<String, Object> body = new HashMap<>();
-//        body.put("timestamp", LocalDateTime.now());
-//        body.put("status", HttpStatus.BAD_REQUEST.value());
-//        body.put("error", "Invalid Request");
-//        body.put("message", ex.getMessage());
-//        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
-//    }
-//
-//    // 5. Catch-all for unexpected exceptions
-//    @ExceptionHandler(Exception.class)
-//    public ResponseEntity<Object> handleGenericException(Exception ex) {
-//        Map<String, Object> body = new HashMap<>();
-//        body.put("timestamp", LocalDateTime.now());
-//        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-//        body.put("error", "Internal Server Error");
-//        body.put("message", ex.getMessage());
-//        return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
-//    }
-//}
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
@@ -105,6 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -120,14 +33,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request) {
 
-        Map<String, String> errors = new HashMap<>();
+        Map<String, String> fieldErrors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
-            errors.put(error.getField(), error.getDefaultMessage());
+            fieldErrors.put(error.getField(), error.getDefaultMessage());
         }
 
         return buildResponse(HttpStatus.BAD_REQUEST,
                 "Validation Failed",
-                errors.toString());
+                "Some fields are invalid",
+                fieldErrors);
     }
 
     /** ------------------- Missing Params / Bad JSON ------------------- **/
@@ -141,7 +55,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         return buildResponse(HttpStatus.BAD_REQUEST,
                 "Missing Request Parameter",
-                "Required parameter is missing: " + ex.getParameterName());
+                "Required parameter is missing: " + ex.getParameterName(),
+                null);
     }
 
     @Override
@@ -153,7 +68,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         return buildResponse(HttpStatus.BAD_REQUEST,
                 "Malformed JSON Request",
-                ex.getMostSpecificCause().getMessage());
+                ex.getMostSpecificCause().getMessage(),
+                null);
     }
 
     /** ------------------- Auth & Security ------------------- **/
@@ -162,14 +78,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleBadCredentials(BadCredentialsException ex) {
         return buildResponse(HttpStatus.UNAUTHORIZED,
                 "Invalid Credentials",
-                ex.getMessage());
+                ex.getMessage(),
+                null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Object> handleAccessDenied(AccessDeniedException ex) {
         return buildResponse(HttpStatus.FORBIDDEN,
                 "Access Denied",
-                ex.getMessage());
+                ex.getMessage(),
+                null);
     }
 
     /** ------------------- Database & Integrity ------------------- **/
@@ -178,7 +96,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleDataIntegrity(DataIntegrityViolationException ex) {
         return buildResponse(HttpStatus.CONFLICT,
                 "Data Integrity Violation",
-                ex.getMostSpecificCause().getMessage());
+                ex.getMostSpecificCause().getMessage(),
+                null);
     }
 
     /** ------------------- Unsupported Method ------------------- **/
@@ -192,7 +111,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         return buildResponse(HttpStatus.METHOD_NOT_ALLOWED,
                 "Method Not Allowed",
-                ex.getMessage());
+                ex.getMessage(),
+                null);
+    }
+
+    /** ------------------- Business Errors ------------------- **/
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Object> handleIllegalArg(IllegalArgumentException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "Invalid Request",
+                ex.getMessage(),
+                null);
     }
 
     /** ------------------- Fallback Catch-All ------------------- **/
@@ -201,16 +131,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleAll(Exception ex) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                 "Unexpected Error",
-                ex.getMessage());
+                ex.getMessage(),
+                null);
     }
 
     /** ------------------- Common Builder ------------------- **/
 
-    private ResponseEntity<Object> buildResponse(HttpStatus status, String error, String message) {
+    private ResponseEntity<Object> buildResponse(HttpStatus status, String error, String message, Object details) {
         Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now().toString());
         body.put("status", status.value());
         body.put("error", error);
         body.put("message", message);
+        if (details != null) {
+            body.put("details", details);
+        }
         return new ResponseEntity<>(body, status);
     }
 }

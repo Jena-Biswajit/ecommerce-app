@@ -3,6 +3,7 @@ package com.example.customer.config;
 import com.example.customer.repository.CustomerRepository;
 import com.example.customer.domain.Customer;
 import com.example.customer.util.JwtUtil;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -11,6 +12,7 @@ import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -23,7 +25,10 @@ public class SecurityConfig {
 
     private final CustomerRepository customerRepository;
     private final JwtUtil jwtUtil;
-
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/customers/signup",
+            "/api/customers/login"
+    };
     public SecurityConfig(CustomerRepository customerRepository, JwtUtil jwtUtil) {
         this.customerRepository = customerRepository;
         this.jwtUtil = jwtUtil;
@@ -47,23 +52,27 @@ public class SecurityConfig {
     }
 
     // NOTE: bean name "jwtAuthFilter" instead of "jwtAuthenticationFilter" to avoid name collisions
+//    @Bean
+//    public JwtAuthenticationFilter jwtAuthFilter(UserDetailsService uds) {
+//        return new JwtAuthenticationFilter(jwtUtil, uds);
+//    }
     @Bean
-    public JwtAuthenticationFilter jwtAuthFilter(UserDetailsService uds) {
-        return new JwtAuthenticationFilter(jwtUtil, uds);
+    public JwtAuthenticationFilter jwtAuthFilter(UserDetailsService uds,
+                                                 ObjectProvider<UserContext> userContextProvider) {
+        return new JwtAuthenticationFilter(jwtUtil, uds, userContextProvider);
     }
-
     @Bean
     public SecurityFilterChain filterChain(org.springframework.security.config.annotation.web.builders.HttpSecurity http,
-                                           UserDetailsService uds) throws Exception {
+                                           UserDetailsService uds,
+                                           ObjectProvider<UserContext> userContextProvider) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/customers/signup", "/api/customers/login").permitAll()
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()  //  Cleaner and scalable
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter(uds), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter(uds, userContextProvider), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

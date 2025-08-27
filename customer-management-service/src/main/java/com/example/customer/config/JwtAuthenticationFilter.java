@@ -1,29 +1,59 @@
+
 package com.example.customer.config;
 
+import com.example.customer.config.UserContext;
 import com.example.customer.util.JwtUtil;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
+/**
+ * Refactored:
+ * - Extracted big "if" blocks into dedicated private methods (processToken, authenticateUser, buildAuthentication).
+ * - No fully-qualified class names; proper imports used.
+ * - Replaced request attribute hack with a request-scoped UserContext (injected via ObjectProvider).
+ */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+    private final ObjectProvider<UserContext> userContextProvider;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil,
+                                   UserDetailsService userDetailsService,
+                                   ObjectProvider<UserContext> userContextProvider) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.userContextProvider = userContextProvider;
     }
 
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain) throws ServletException, IOException {
+        String token = resolveToken(request);
+        logger.info("JWT Filter triggered for request: " + request.getRequestURI());
+        if (token != null) {
+            logger.debug("JwtAuthenticationFilter: found token");
+            processToken(token, request);
+        } else {
+            logger.debug("JwtAuthenticationFilter: no Authorization header");
+        }
+
+        chain.doFilter(request, response);
+    }
+
+    /** Extracts "Bearer ..." token from Authorization header. */
     private String resolveToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
@@ -32,46 +62,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain)
-            throws ServletException, IOException {
+    /** Validates the token and authenticates the user if valid. */
+    private void processToken(String token, HttpServletRequest request) {
+        if (!jwtUtil.validateToken(token)) {
+            logger.debug("JwtAuthenticationFilter: token invalid");
+            return;
+        }
+        authenticateUser(token, request);
+    }
 
-        String token = resolveToken(request);
-        if (token != null) {
-            logger.debug("JwtAuthenticationFilter: found token");
-            if (jwtUtil.validateToken(token)) {
-                String email = jwtUtil.extractEmail(token);
-                Long customerId = jwtUtil.extractCustomerId(token);
+    /** Loads user details, sets SecurityContext, and populates the request-scoped UserContext. */
+    private void authenticateUser(String token, HttpServletRequest request) {
+        String email = jwtUtil.extractEmail(token);
+        Long customerId = jwtUtil.extractCustomerId(token);
+        request.setAttribute("authenticatedCustomerId", customerId);
 
-                if (email != null) {
-                    try {
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-                        UsernamePasswordAuthenticationToken auth =
-                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                        // set principal in security context
-                        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
-
-                        // also store the id for controllers to verify resource ownership
-                        request.setAttribute("authenticatedCustomerId", customerId);
-
-                        logger.debug("JwtAuthenticationFilter: authenticated user " + email + " cid=" + customerId);
-                    } catch (Exception e) {
-                        logger.debug("JwtAuthenticationFilter: failed to load user details: " + e.getMessage());
-                        // do nothing — will be anonymous
-                    }
-                }
-            } else {
-                logger.debug("JwtAuthenticationFilter: token invalid");
-            }
-        } else {
-            logger.debug("JwtAuthenticationFilter: no Authorization header");
+        if (email == null) {
+            logger.debug("JwtAuthenticationFilter: token has no email");
+            return;
         }
 
-        chain.doFilter(request, response);
+        try {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+            UsernamePasswordAuthenticationToken auth = buildAuthentication(userDetails, request);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            // populate request-scoped UserContext (preferred over request attributes)
+            UserContext userContext = userContextProvider.getObject();
+            userContext.setCustomerId(customerId);
+            userContext.setEmail(email);
+
+            logger.debug("JwtAuthenticationFilter: authenticated user " + email + " cid=" + customerId);
+        } catch (Exception e) {
+            logger.debug("JwtAuthenticationFilter: failed to authenticate: " + e.getMessage());
+            // leave unauthenticated; downstream can handle as anonymous
+        }
+    }
+
+    /** Builds the Spring Security authentication token with request details. */
+    private UsernamePasswordAuthenticationToken buildAuthentication(UserDetails userDetails,
+                                                                    HttpServletRequest request) {
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        return auth;
     }
 }

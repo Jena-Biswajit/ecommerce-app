@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.lang.Long.valueOf;
 
@@ -72,6 +73,55 @@ public class CustomerService {
     }
 
     @Transactional
+    public CustomerResponse updateEmail(Long customerId, String newEmail) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        if (customers.existsByEmailIgnoreCase(newEmail)) {
+            throw new IllegalArgumentException("Email already registered");
+        }
+
+        c.setEmail(newEmail.toLowerCase());
+        Customer saved = customers.save(c);
+        return new CustomerResponse(saved.getId(), saved.getEmail(), saved.getFullName(), saved.getPhone());
+    }
+
+    @Transactional
+    public void updatePassword(Long customerId, String oldPassword, String newPassword) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        if (!passwordUtil.matches(oldPassword, c.getPasswordHash())) {
+            throw new IllegalArgumentException("Old password is incorrect");
+        }
+
+        c.setPasswordHash(passwordUtil.hash(newPassword));
+        customers.save(c);
+    }
+
+    @Transactional
+    public CustomerResponse updatePhone(Long customerId, String newPhone) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        c.setPhone(newPhone);
+        Customer saved = customers.save(c);
+        return new CustomerResponse(saved.getId(), saved.getEmail(), saved.getFullName(), saved.getPhone());
+    }
+
+    @Transactional
+    public void deleteCustomer(Long customerId) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        // delete all addresses first
+        addresses.deleteAll(addresses.findByCustomer(c));
+
+        // delete customer account
+        customers.delete(c);
+    }
+
+    @Transactional
     public AddressResponse addAddress(Long customerId, AddressRequest req) {
         Customer c = customers.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
@@ -118,6 +168,46 @@ public class CustomerService {
         }
     }
 
+    @Transactional
+    public AddressResponse updateAddress(Long customerId, Long addressId, AddressRequest req) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        Address addr = addresses.findByIdAndCustomer(addressId, c)
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+
+        // update fields
+        addr.setLine1(req.line1());
+        addr.setLine2(req.line2());
+        addr.setCity(req.city());
+        addr.setState(req.state());
+        addr.setPostalCode(req.postalCode());
+        addr.setCountry(req.country());
+
+        Address saved = addresses.save(addr);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public AddressResponse patchAddress(Long customerId, Long addressId, Map<String, Object> updates) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        Address addr = addresses.findByIdAndCustomer(addressId, c)
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+
+        // Only update fields present in the map
+        if (updates.containsKey("line1")) addr.setLine1((String) updates.get("line1"));
+        if (updates.containsKey("line2")) addr.setLine2((String) updates.get("line2"));
+        if (updates.containsKey("city")) addr.setCity((String) updates.get("city"));
+        if (updates.containsKey("state")) addr.setState((String) updates.get("state"));
+        if (updates.containsKey("postalCode")) addr.setPostalCode((String) updates.get("postalCode"));
+        if (updates.containsKey("country")) addr.setCountry((String) updates.get("country"));
+        if (updates.containsKey("default")) addr.setDefault((Boolean) updates.get("default"));
+
+        return toResponse(addresses.save(addr));
+    }
+
     private void unsetOtherDefaults(Long customerId, Long keepAddressId) {
         Customer c = customers.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
@@ -128,6 +218,17 @@ public class CustomerService {
                 addresses.save(other);
             }
         }
+    }
+
+    @Transactional
+    public void deleteAddress(Long customerId, Long addressId) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        Address addr = addresses.findByIdAndCustomer(addressId, c)
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+
+        addresses.delete(addr);
     }
 
     private AddressResponse toResponse(Address a) {
