@@ -3,16 +3,26 @@ package com.example.customer.service;
 
 import com.example.customer.domain.Address;
 import com.example.customer.domain.Customer;
-import com.example.customer.dto.*;
+import com.example.customer.dto.AddressRequest;
+import com.example.customer.dto.SignupRequest;
+import com.example.customer.dto.LoginResponse;
+import com.example.customer.dto.CustomerResponse;
+import com.example.customer.dto.AddressResponse;
+import com.example.customer.dto.LoginRequest;
 import com.example.customer.repository.AddressRepository;
 import com.example.customer.repository.CustomerRepository;
 import com.example.customer.util.JwtUtil;
 import com.example.customer.util.PasswordUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
-
-import java.util.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.function.Executable;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -67,7 +77,7 @@ class CustomerServiceTest {
         final SignupRequest req = new SignupRequest("test@example.com", "pwd", "John", "1234");
         when(customerRepo.existsByEmailIgnoreCase("test@example.com")).thenReturn(true);
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
                 service.signup(req);
@@ -101,7 +111,7 @@ class CustomerServiceTest {
     void testLoginInvalidEmail() {
         when(customerRepo.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.empty());
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
                 service.login(new LoginRequest("test@example.com", "pwd"));
@@ -117,7 +127,7 @@ class CustomerServiceTest {
         when(customerRepo.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(c));
         when(passwordUtil.matches("pwd", "hashedPwd")).thenReturn(false);
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
                 service.login(new LoginRequest("test@example.com", "pwd"));
@@ -145,7 +155,7 @@ class CustomerServiceTest {
     void testAuthenticateInvalidToken() {
         when(jwtUtil.validateToken("token123")).thenReturn(false);
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
                 service.authenticate("token123");
@@ -159,7 +169,7 @@ class CustomerServiceTest {
         when(jwtUtil.validateToken("token123")).thenReturn(true);
         when(jwtUtil.extractCustomerId("token123")).thenReturn(null);
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
                 service.authenticate("token123");
@@ -174,7 +184,7 @@ class CustomerServiceTest {
         when(jwtUtil.extractCustomerId("token123")).thenReturn(1L);
         when(customerRepo.findById(1L)).thenReturn(Optional.empty());
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
                 service.authenticate("token123");
@@ -213,7 +223,7 @@ class CustomerServiceTest {
     void testAddAddressNonExistentCustomer() {
         when(customerRepo.findById(1L)).thenReturn(Optional.empty());
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
                 service.addAddress(1L, new AddressRequest("L1", "Line2","C", "S", "P", "CN", false));

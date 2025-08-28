@@ -20,7 +20,7 @@
         <!-- Dependency Versions -->
         <flyway.version>9.21.1</flyway.version>
         <jjwt.version>0.11.5</jjwt.version>
-        <jacoco.version>0.8.11</jacoco.version>
+<!--        <jacoco.version>0.8.11</jacoco.version>-->
         <mysql.version>8.0.33</mysql.version>
         <h2.version>2.2.224</h2.version>
         <mockito.version>5.11.0</mockito.version>
@@ -127,11 +127,11 @@
         </dependency>
 
         <!-- Jacoco -->
-        <dependency>
-            <groupId>org.jacoco</groupId>
-            <artifactId>jacoco-maven-plugin</artifactId>
-            <version>${jacoco.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.jacoco</groupId>-->
+<!--            <artifactId>jacoco-maven-plugin</artifactId>-->
+<!--            <version>${jacoco.version}</version>-->
+<!--        </dependency>-->
     </dependencies>
 
     <build>

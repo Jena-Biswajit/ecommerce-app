@@ -1,6 +1,11 @@
 package com.example.customer.controller;
 
-import com.example.customer.dto.*;
+import com.example.customer.dto.AddressRequest;
+import com.example.customer.dto.SignupRequest;
+import com.example.customer.dto.LoginResponse;
+import com.example.customer.dto.CustomerResponse;
+import com.example.customer.dto.AddressResponse;
+import com.example.customer.dto.LoginRequest;
 import com.example.customer.service.CustomerService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

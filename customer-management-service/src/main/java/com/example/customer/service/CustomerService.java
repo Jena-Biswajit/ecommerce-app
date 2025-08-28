@@ -2,7 +2,12 @@ package com.example.customer.service;
 
 import com.example.customer.domain.Address;
 import com.example.customer.domain.Customer;
-import com.example.customer.dto.*;
+import com.example.customer.dto.AddressRequest;
+import com.example.customer.dto.SignupRequest;
+import com.example.customer.dto.LoginResponse;
+import com.example.customer.dto.CustomerResponse;
+import com.example.customer.dto.AddressResponse;
+import com.example.customer.dto.LoginRequest;
 import com.example.customer.repository.AddressRepository;
 import com.example.customer.repository.CustomerRepository;
 import com.example.customer.util.JwtUtil;

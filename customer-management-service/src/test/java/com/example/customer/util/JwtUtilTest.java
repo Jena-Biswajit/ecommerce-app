@@ -37,23 +37,6 @@ class JwtUtilTest {
         assertFalse(jwtUtil.validateToken("this.is.fake.token"));
     }
 
-//    @Test
-//    void testExtractCustomerId_NullCid() {
-//        // Create token without cid claim
-//        String token = new io.jsonwebtoken.JwtBuilder() {
-//            // Just a dummy builder, but we can do simpler:
-//        };
-//
-//        String tokenWithoutCid = io.jsonwebtoken.Jwts.builder()
-//                .setSubject("no-cid@example.com")
-//                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
-//                                "12345678901234567890123456789012".getBytes()),
-//                        io.jsonwebtoken.SignatureAlgorithm.HS256)
-//                .compact();
-//
-//        assertNull(jwtUtil.extractCustomerId(tokenWithoutCid));
-//    }
-
     @Test
     void testExtractCustomerId_InvalidCidType() {
         // put string instead of number
