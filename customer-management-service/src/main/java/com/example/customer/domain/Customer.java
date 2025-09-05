@@ -1,7 +1,21 @@
 package com.example.customer.domain;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +28,11 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Customer {
+
+    public enum Status {
+        ACTIVE,
+        SUSPENDED
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) // BIGINT AUTO_INCREMENT
@@ -30,6 +49,11 @@ public class Customer {
 
     @Column(length = 50)
     private String phone;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private Status status = Status.ACTIVE;
 
     @Column(name = "created_at", updatable = false, insertable = false)
     private Instant createdAt;

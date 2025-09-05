@@ -3,78 +3,36 @@ package com.example.customer.service;
 import com.example.customer.domain.Address;
 import com.example.customer.domain.Customer;
 import com.example.customer.dto.AddressRequest;
-import com.example.customer.dto.SignupRequest;
-import com.example.customer.dto.LoginResponse;
-import com.example.customer.dto.CustomerResponse;
 import com.example.customer.dto.AddressResponse;
-import com.example.customer.dto.LoginRequest;
+import com.example.customer.dto.CustomerResponse;
 import com.example.customer.repository.AddressRepository;
 import com.example.customer.repository.CustomerRepository;
-import com.example.customer.util.JwtUtil;
-import com.example.customer.util.PasswordUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
-
-import static java.lang.Long.valueOf;
+import java.util.Objects;
 
 @Service
 public class CustomerService {
 
     private final CustomerRepository customers;
     private final AddressRepository addresses;
-    private final PasswordUtil passwordUtil;
-    private final JwtUtil jwtUtil;
 
     public CustomerService(CustomerRepository customers,
-                           AddressRepository addresses,
-                           PasswordUtil passwordUtil,
-                           JwtUtil jwtUtil) {
+                           AddressRepository addresses) {
         this.customers = customers;
         this.addresses = addresses;
-        this.passwordUtil = passwordUtil;
-        this.jwtUtil = jwtUtil;
     }
 
-    @Transactional
-    public CustomerResponse signup(SignupRequest req) {
-        String email = req.email().toLowerCase();
-        if (customers.existsByEmailIgnoreCase(email)) {
-            throw new IllegalArgumentException("Email already registered");
-        }
-        Customer c = new Customer();
-        c.setEmail(email);
-        c.setPasswordHash(passwordUtil.hash(req.password()));
-        c.setFullName(req.fullName());
-        c.setPhone(req.phone());
-        Customer saved = customers.save(c);
-        return new CustomerResponse(valueOf(saved.getId()), (saved.getEmail()), saved.getFullName(), saved.getPhone());
-    }
+    // ================== CUSTOMER CRUD ==================
 
     @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest req) {
-        Customer c = customers.findByEmailIgnoreCase(req.email())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
-        if (!passwordUtil.matches(req.password(), c.getPasswordHash())) {
-            throw new IllegalArgumentException("Invalid email or password");
-        }
-
-        // ✅ Generate JWT with both email & customerId
-        String token = jwtUtil.generateToken(c.getId(), c.getEmail());
-        return new LoginResponse(c.getId(), c.getEmail(), token);
-    }
-
-    @Transactional(readOnly = true)
-    public Customer authenticate(String token) {
-        if (!jwtUtil.validateToken(token)) {
-            throw new IllegalArgumentException("Invalid or expired token");
-        }
-        Long customerId = jwtUtil.extractCustomerId(token);
-        if (customerId == null) throw new IllegalArgumentException("Invalid token - missing customer id");
-        return customers.findById(customerId)
+    public CustomerResponse getCustomerById(Long customerId) {
+        Customer c = customers.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+        return new CustomerResponse(c.getId(), c.getEmail(), c.getFullName(), c.getPhone());
     }
 
     @Transactional
@@ -92,19 +50,6 @@ public class CustomerService {
     }
 
     @Transactional
-    public void updatePassword(Long customerId, String oldPassword, String newPassword) {
-        Customer c = customers.findById(customerId)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
-
-        if (!passwordUtil.matches(oldPassword, c.getPasswordHash())) {
-            throw new IllegalArgumentException("Old password is incorrect");
-        }
-
-        c.setPasswordHash(passwordUtil.hash(newPassword));
-        customers.save(c);
-    }
-
-    @Transactional
     public CustomerResponse updatePhone(Long customerId, String newPhone) {
         Customer c = customers.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
@@ -114,17 +59,31 @@ public class CustomerService {
         return new CustomerResponse(saved.getId(), saved.getEmail(), saved.getFullName(), saved.getPhone());
     }
 
+    /**
+     * Suspend account instead of deleting
+     */
     @Transactional
-    public void deleteCustomer(Long customerId) {
+    public CustomerResponse suspendCustomer(Long customerId) {
         Customer c = customers.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
-
-        // delete all addresses first
-        addresses.deleteAll(addresses.findByCustomer(c));
-
-        // delete customer account
-        customers.delete(c);
+        c.setStatus(Customer.Status.SUSPENDED);
+        Customer saved = customers.save(c);
+        return new CustomerResponse(saved.getId(), saved.getEmail(), saved.getFullName(), saved.getPhone());
     }
+
+    /**
+     * Reactivate a suspended account
+     */
+    @Transactional
+    public CustomerResponse reactivateCustomer(Long customerId) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+        c.setStatus(Customer.Status.ACTIVE);
+        Customer saved = customers.save(c);
+        return new CustomerResponse(saved.getId(), saved.getEmail(), saved.getFullName(), saved.getPhone());
+    }
+
+    // ================== ADDRESS MANAGEMENT ==================
 
     @Transactional
     public AddressResponse addAddress(Long customerId, AddressRequest req) {
@@ -181,7 +140,6 @@ public class CustomerService {
         Address addr = addresses.findByIdAndCustomer(addressId, c)
                 .orElseThrow(() -> new IllegalArgumentException("Address not found"));
 
-        // update fields
         addr.setLine1(req.line1());
         addr.setLine2(req.line2());
         addr.setCity(req.city());
@@ -189,8 +147,7 @@ public class CustomerService {
         addr.setPostalCode(req.postalCode());
         addr.setCountry(req.country());
 
-        Address saved = addresses.save(addr);
-        return toResponse(saved);
+        return toResponse(addresses.save(addr));
     }
 
     @Transactional
@@ -201,7 +158,6 @@ public class CustomerService {
         Address addr = addresses.findByIdAndCustomer(addressId, c)
                 .orElseThrow(() -> new IllegalArgumentException("Address not found"));
 
-        // Only update fields present in the map
         if (updates.containsKey("line1")) addr.setLine1((String) updates.get("line1"));
         if (updates.containsKey("line2")) addr.setLine2((String) updates.get("line2"));
         if (updates.containsKey("city")) addr.setCity((String) updates.get("city"));
@@ -211,18 +167,6 @@ public class CustomerService {
         if (updates.containsKey("default")) addr.setDefault((Boolean) updates.get("default"));
 
         return toResponse(addresses.save(addr));
-    }
-
-    private void unsetOtherDefaults(Long customerId, Long keepAddressId) {
-        Customer c = customers.findById(customerId)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
-        List<Address> all = addresses.findByCustomer(c);
-        for (Address other : all) {
-            if (!other.getId().equals(keepAddressId) && other.isDefault()) {
-                other.setDefault(false);
-                addresses.save(other);
-            }
-        }
     }
 
     @Transactional
@@ -236,6 +180,19 @@ public class CustomerService {
         addresses.delete(addr);
     }
 
+    private void unsetOtherDefaults(Long customerId, Long keepAddressId) {
+        Customer c = customers.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        // use the exact same reference
+        List<Address> all = addresses.findByCustomer(c);
+        for (Address other : all) {
+            if (!Objects.equals(other.getId(), keepAddressId) && other.isDefault()) {
+                other.setDefault(false);
+                addresses.save(other);
+            }
+        }
+    }
     private AddressResponse toResponse(Address a) {
         return new AddressResponse(
                 a.getId(), a.getLine1(), a.getLine2(), a.getCity(), a.getState(),

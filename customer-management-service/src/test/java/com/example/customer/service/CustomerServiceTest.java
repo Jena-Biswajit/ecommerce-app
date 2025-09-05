@@ -1,294 +1,689 @@
+//package com.example.customer.service;
+//
+//import com.example.customer.domain.Address;
+//import com.example.customer.domain.Customer;
+//import com.example.customer.dto.AddressRequest;
+//import com.example.customer.dto.AddressResponse;
+//import com.example.customer.dto.CustomerResponse;
+//import com.example.customer.repository.AddressRepository;
+//import com.example.customer.repository.CustomerRepository;
+//import org.junit.jupiter.api.BeforeEach;
+//import org.junit.jupiter.api.Test;
+//import org.mockito.Mockito;
+//
+//import java.util.*;
+//
+//import static org.junit.jupiter.api.Assertions.*;
+//import static org.mockito.Mockito.*;
+//
+//class CustomerServiceTest {
+//
+//    private CustomerRepository customers;
+//    private AddressRepository addresses;
+//    private CustomerService service;
+//
+//    private Customer customer;
+//    private Address address;
+//
+//    @BeforeEach
+//    void setup() {
+//        customers = Mockito.mock(CustomerRepository.class);
+//        addresses = Mockito.mock(AddressRepository.class);
+//        service = new CustomerService(customers, addresses);
+//
+//        customer = new Customer();
+//        customer.setId(1L);
+//        customer.setEmail("test@example.com");
+//        customer.setFullName("Test User");
+//        customer.setPhone("9999999999");
+//        customer.setStatus(Customer.Status.ACTIVE);
+//
+//        address = new Address();
+//        address.setId(10L);
+//        address.setCustomer(customer);
+//        address.setLine1("Line1");
+//        address.setCity("City");
+//        address.setCountry("Country");
+//        address.setDefault(false);
+//    }
+//
+//    // ===== CUSTOMER TESTS =====
+//
+//    @Test
+//    void testGetCustomerById_success() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//
+//        CustomerResponse resp = service.getCustomerById(1L);
+//
+//        assertEquals("test@example.com", resp.email());
+//    }
+//
+//    @Test
+//    void testGetCustomerById_notFound() {
+//        when(customers.findById(2L)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.getCustomerById(2L));
+//    }
+//
+//    @Test
+//    void testUpdateEmail_success() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(customers.existsByEmailIgnoreCase("new@mail.com")).thenReturn(false);
+//        when(customers.save(any(Customer.class))).thenReturn(customer);
+//
+//        CustomerResponse resp = service.updateEmail(1L, "new@mail.com");
+//
+//        assertEquals("new@mail.com", resp.email());
+//    }
+//
+//    @Test
+//    void testUpdateEmail_alreadyExists() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(customers.existsByEmailIgnoreCase("dup@mail.com")).thenReturn(true);
+//
+//        assertThrows(IllegalArgumentException.class, () -> service.updateEmail(1L, "dup@mail.com"));
+//    }
+//
+//    @Test
+//    void testUpdatePhone_success() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(customers.save(any(Customer.class))).thenReturn(customer);
+//
+//        CustomerResponse resp = service.updatePhone(1L, "12345");
+//        assertEquals("12345", resp.phone());
+//    }
+//
+//    @Test
+//    void testSuspendCustomer_success() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(customers.save(any(Customer.class))).thenReturn(customer);
+//
+//        CustomerResponse resp = service.suspendCustomer(1L);
+//        assertEquals(Customer.Status.SUSPENDED, customer.getStatus());
+//    }
+//
+//    @Test
+//    void testReactivateCustomer_success() {
+//        customer.setStatus(Customer.Status.SUSPENDED);
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(customers.save(any(Customer.class))).thenReturn(customer);
+//
+//        CustomerResponse resp = service.reactivateCustomer(1L);
+//        assertEquals(Customer.Status.ACTIVE, customer.getStatus());
+//    }
+//
+//    // ===== ADDRESS TESTS =====
+//
+//    @Test
+//    void testAddAddress_firstAddressBecomesDefault() {
+//        AddressRequest req = new AddressRequest("L1", "L2", "City", "State", "12345", "India", false);
+//
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.countByCustomer(customer)).thenReturn(0L);
+//        when(addresses.save(any(Address.class))).thenReturn(address);
+//
+//        AddressResponse resp = service.addAddress(1L, req);
+//
+//        assertEquals("Line1", resp.line1()); // from address mock
+//    }
+//
+//    @Test
+//    void testAddAddress_makeDefaultTrue() {
+//        AddressRequest req = new AddressRequest("L1", "L2", "City", "State", "12345", "India", true);
+//
+//        address.setDefault(true);
+//
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.countByCustomer(customer)).thenReturn(1L);
+//        when(addresses.save(any(Address.class))).thenReturn(address);
+//        when(addresses.findByCustomer(customer)).thenReturn(Collections.singletonList(address));
+//
+//        AddressResponse resp = service.addAddress(1L, req);
+//
+//        assertTrue(resp.isDefault());
+//    }
+//
+//    @Test
+//    void testListAddresses_success() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByCustomer(customer)).thenReturn(Collections.singletonList(address));
+//
+//        List<AddressResponse> resp = service.listAddresses(1L);
+//
+//        assertEquals(1, resp.size());
+//    }
+//
+//    @Test
+//    void testSetDefaultAddress_success() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.of(address));
+//        when(addresses.save(any(Address.class))).thenReturn(address);
+//        when(addresses.findByCustomer(customer)).thenReturn(Collections.singletonList(address));
+//
+//        service.setDefaultAddress(1L, 10L);
+//
+//        assertTrue(address.isDefault());
+//    }
+//
+//    @Test
+//    void testSetDefaultAddress_alreadyDefault() {
+//        address.setDefault(true);
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.of(address));
+//
+//        service.setDefaultAddress(1L, 10L);
+//        assertTrue(address.isDefault()); // unchanged
+//    }
+//
+//    @Test
+//    void testUpdateAddress_success() {
+//        AddressRequest req = new AddressRequest("X", "Y", "CityX", "StateX", "11111", "USA", false);
+//
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.of(address));
+//        when(addresses.save(any(Address.class))).thenReturn(address);
+//
+//        AddressResponse resp = service.updateAddress(1L, 10L, req);
+//
+//        assertEquals("X", resp.line1());
+//    }
+//
+//    @Test
+//    void testPatchAddress_success() {
+//        Map<String, Object> updates = new HashMap<>();
+//        updates.put("line1", "PatchL1");
+//        updates.put("default", true);
+//
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.of(address));
+//        when(addresses.save(any(Address.class))).thenReturn(address);
+//
+//        AddressResponse resp = service.patchAddress(1L, 10L, updates);
+//
+//        assertEquals("PatchL1", resp.line1());
+//    }
+//
+//    @Test
+//    void testDeleteAddress_success() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.of(address));
+//
+//        service.deleteAddress(1L, 10L);
+//
+//        verify(addresses).delete(address);
+//    }
+//
+//    @Test
+//    void testUnsetOtherDefaults_changesOtherAddresses() {
+//        Address addr2 = new Address();
+//        addr2.setId(20L);
+//        addr2.setCustomer(customer);
+//        addr2.setDefault(true);
+//
+//        List<Address> list = Arrays.asList(address, addr2);
+//
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.of(address)); // ✅ fix
+//        when(addresses.findByCustomer(customer)).thenReturn(list);
+//        when(addresses.save(any(Address.class))).thenReturn(addr2);
+//
+//        service.setDefaultAddress(1L, 10L);
+//
+//        assertFalse(addr2.isDefault());
+//    }
+//
+//    // ===== ERROR PATHS =====
+//
+//    @Test
+//    void testUpdatePhone_notFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.updatePhone(1L, "12345"));
+//    }
+//
+//    @Test
+//    void testSuspendCustomer_notFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.suspendCustomer(1L));
+//    }
+//
+//    @Test
+//    void testReactivateCustomer_notFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.reactivateCustomer(1L));
+//    }
+//
+//    @Test
+//    void testAddAddress_customerNotFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.empty());
+//        AddressRequest req = new AddressRequest("L1", "L2", "C", "S", "P", "Country", false);
+//        assertThrows(IllegalArgumentException.class, () -> service.addAddress(1L, req));
+//    }
+//
+//    @Test
+//    void testListAddresses_customerNotFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.listAddresses(1L));
+//    }
+//
+//    @Test
+//    void testSetDefaultAddress_notFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.setDefaultAddress(1L, 10L));
+//    }
+//
+//    @Test
+//    void testUpdateAddress_addressNotFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.empty());
+//        AddressRequest req = new AddressRequest("L1", "L2", "C", "S", "P", "Country", false);
+//        assertThrows(IllegalArgumentException.class, () -> service.updateAddress(1L, 10L, req));
+//    }
+//
+//    @Test
+//    void testPatchAddress_addressNotFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.patchAddress(1L, 10L, new HashMap<>()));
+//    }
+//
+//    @Test
+//    void testDeleteAddress_addressNotFound() {
+//        when(customers.findById(1L)).thenReturn(Optional.of(customer));
+//        when(addresses.findByIdAndCustomer(10L, customer)).thenReturn(Optional.empty());
+//        assertThrows(IllegalArgumentException.class, () -> service.deleteAddress(1L, 10L));
+//    }
+//}
+
+
 
 package com.example.customer.service;
 
 import com.example.customer.domain.Address;
 import com.example.customer.domain.Customer;
 import com.example.customer.dto.AddressRequest;
-import com.example.customer.dto.SignupRequest;
-import com.example.customer.dto.LoginResponse;
-import com.example.customer.dto.CustomerResponse;
 import com.example.customer.dto.AddressResponse;
-import com.example.customer.dto.LoginRequest;
+import com.example.customer.dto.CustomerResponse;
 import com.example.customer.repository.AddressRepository;
 import com.example.customer.repository.CustomerRepository;
-import com.example.customer.util.JwtUtil;
-import com.example.customer.util.PasswordUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.function.Executable;
+
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CustomerServiceTest {
 
+    @Mock
+    private CustomerRepository customerRepository;
+    @Mock
+    private AddressRepository addressRepository;
+
     @InjectMocks
     private CustomerService service;
 
-    @Mock
-    private CustomerRepository customerRepo;
-
-    @Mock
-    private AddressRepository addressRepo;
-
-    @Mock
-    private PasswordUtil passwordUtil;
-
-    @Mock
-    private JwtUtil jwtUtil;
+    private Customer customer;
 
     @BeforeEach
-    void init() {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
+        customer = new Customer();
+        customer.setId(1L);
+        customer.setEmail("old@example.com");
+        customer.setFullName("John Doe");
+        customer.setPhone("12345");
+        customer.setStatus(Customer.Status.ACTIVE);
     }
 
-    // ==================== Signup ====================
+    // ---------------- CUSTOMER TESTS ----------------
+
     @Test
-    void testSignupSuccess() {
-        final SignupRequest req = new SignupRequest("Test@Example.com", "password123", "John Doe", "1234567890");
-
-        when(customerRepo.existsByEmailIgnoreCase("test@example.com")).thenReturn(false);
-        when(passwordUtil.hash("password123")).thenReturn("hashedPwd");
-
-        Customer saved = new Customer();
-        saved.setId(1L);
-        saved.setEmail("test@example.com");
-        saved.setFullName("John Doe");
-        saved.setPhone("1234567890");
-        when(customerRepo.save(any(Customer.class))).thenReturn(saved);
-
-        CustomerResponse resp = service.signup(req);
-
-        assertEquals(1L, resp.id());
-        assertEquals("test@example.com", resp.email()); // email stored lowercased
-        assertEquals("John Doe", resp.fullName());
-        assertEquals("1234567890", resp.phone());
+    void getCustomerById_found() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        CustomerResponse res = service.getCustomerById(1L);
+        assertEquals("old@example.com", res.email());
     }
 
     @Test
-    void testSignupDuplicateEmail() {
-        final SignupRequest req = new SignupRequest("test@example.com", "pwd", "John", "1234");
-        when(customerRepo.existsByEmailIgnoreCase("test@example.com")).thenReturn(true);
+    void getCustomerById_notFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.getCustomerById(1L));
+    }
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                service.signup(req);
-            }
+    @Test
+    void updateEmail_success() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(customerRepository.existsByEmailIgnoreCase("new@example.com")).thenReturn(false);
+        when(customerRepository.save(any(Customer.class))).thenAnswer(i -> i.getArgument(0));
+
+        CustomerResponse res = service.updateEmail(1L, "new@example.com");
+        assertEquals("new@example.com", res.email());
+    }
+
+    @Test
+    void updateEmail_customerNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.updateEmail(1L, "x@example.com"));
+    }
+
+    @Test
+    void updateEmail_duplicateEmail() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(customerRepository.existsByEmailIgnoreCase("dup@example.com")).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> service.updateEmail(1L, "dup@example.com"));
+    }
+
+    @Test
+    void updatePhone_success() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(any(Customer.class))).thenAnswer(i -> i.getArgument(0));
+
+        CustomerResponse res = service.updatePhone(1L, "98765");
+        assertEquals("98765", res.phone());
+    }
+
+    @Test
+    void updatePhone_notFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.updatePhone(1L, "98765"));
+    }
+
+    @Test
+    void suspendCustomer_success() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(any(Customer.class))).thenAnswer(i -> i.getArgument(0));
+        CustomerResponse res = service.suspendCustomer(1L);
+        assertEquals(Customer.Status.SUSPENDED, customer.getStatus());
+    }
+
+    @Test
+    void suspendCustomer_notFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.suspendCustomer(1L));
+    }
+
+    @Test
+    void reactivateCustomer_success() {
+        customer.setStatus(Customer.Status.SUSPENDED);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(any(Customer.class))).thenAnswer(i -> i.getArgument(0));
+        CustomerResponse res = service.reactivateCustomer(1L);
+        assertEquals(Customer.Status.ACTIVE, customer.getStatus());
+    }
+
+    @Test
+    void reactivateCustomer_notFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.reactivateCustomer(1L));
+    }
+
+    // ---------------- ADDRESS TESTS ----------------
+
+    @Test
+    void addAddress_success_firstAddressBecomesDefault() {
+        AddressRequest req = new AddressRequest("l1", "l2", "city", "st", "123", "IN", false);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.countByCustomer(customer)).thenReturn(0L);
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> {
+            Address a = i.getArgument(0);
+            a.setId(10L);
+            return a;
         });
-        assertEquals("Email already registered", ex.getMessage());
-    }
-
-    // ==================== Login ====================
-    @Test
-    void testLoginSuccess() {
-        final LoginRequest req = new LoginRequest("test@example.com", "pwd");
-
-        Customer c = new Customer();
-        c.setId(1L);
-        c.setEmail("test@example.com");
-        c.setPasswordHash("hashedPwd");
-
-        when(customerRepo.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(c));
-        when(passwordUtil.matches("pwd", "hashedPwd")).thenReturn(true);
-        when(jwtUtil.generateToken(1L, "test@example.com")).thenReturn("token123");
-
-        LoginResponse resp = service.login(req);
-
-        assertEquals(1L, resp.customerId());
-        assertEquals("test@example.com", resp.email());
-        assertEquals("token123", resp.token());
+        AddressResponse res = service.addAddress(1L, req);
+        assertTrue(res.isDefault());
     }
 
     @Test
-    void testLoginInvalidEmail() {
-        when(customerRepo.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.empty());
-
-        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                service.login(new LoginRequest("test@example.com", "pwd"));
-            }
+    void addAddress_makeDefaultTrue() {
+        AddressRequest req = new AddressRequest("l1", "l2", "city", "st", "123", "IN", true);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.countByCustomer(customer)).thenReturn(1L);
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> {
+            Address a = i.getArgument(0);
+            a.setId(11L);
+            return a;
         });
-        assertEquals("Invalid email or password", ex.getMessage());
+        AddressResponse res = service.addAddress(1L, req);
+        assertTrue(res.isDefault());
     }
 
     @Test
-    void testLoginInvalidPassword() {
-        Customer c = new Customer();
-        c.setPasswordHash("hashedPwd");
-        when(customerRepo.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(c));
-        when(passwordUtil.matches("pwd", "hashedPwd")).thenReturn(false);
+    void addAddress_customerNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        AddressRequest req = new AddressRequest("a", "b", "c", "d", "123", "X", false);
+        assertThrows(IllegalArgumentException.class, () -> service.addAddress(1L, req));
+    }
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                service.login(new LoginRequest("test@example.com", "pwd"));
-            }
+    @Test
+    void listAddresses_success() {
+        Address addr = new Address();
+        addr.setId(22L);
+        addr.setCustomer(customer);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByCustomer(customer)).thenReturn(List.of(addr));
+
+        List<AddressResponse> res = service.listAddresses(1L);
+        assertEquals(1, res.size());
+    }
+
+    @Test
+    void listAddresses_notFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.listAddresses(1L));
+    }
+
+    @Test
+    void setDefaultAddress_success() {
+        Address addr = new Address();
+        addr.setId(33L);
+        addr.setCustomer(customer);
+        addr.setDefault(false);
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(33L, customer)).thenReturn(Optional.of(addr));
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.setDefaultAddress(1L, 33L);
+        assertTrue(addr.isDefault());
+    }
+
+    @Test
+    void setDefaultAddress_alreadyDefault_noChange() {
+        Address addr = new Address();
+        addr.setId(34L);
+        addr.setCustomer(customer);
+        addr.setDefault(true);
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(34L, customer)).thenReturn(Optional.of(addr));
+
+        service.setDefaultAddress(1L, 34L);
+        assertTrue(addr.isDefault());
+        verify(addressRepository, never()).save(addr);
+    }
+
+    @Test
+    void setDefaultAddress_customerNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.setDefaultAddress(1L, 99L));
+    }
+
+    @Test
+    void setDefaultAddress_addressNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(99L, customer)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.setDefaultAddress(1L, 99L));
+    }
+
+    @Test
+    void updateAddress_success() {
+        Address addr = new Address();
+        addr.setId(44L);
+        addr.setCustomer(customer);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(44L, customer)).thenReturn(Optional.of(addr));
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> i.getArgument(0));
+
+        AddressRequest req = new AddressRequest("l1", "l2", "city", "st", "123", "IN", false);
+        AddressResponse res = service.updateAddress(1L, 44L, req);
+        assertEquals("l1", res.line1());
+    }
+
+    @Test
+    void updateAddress_customerNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        AddressRequest req = new AddressRequest("a","b","c","d","e","f",false);
+        assertThrows(IllegalArgumentException.class, () -> service.updateAddress(1L, 44L, req));
+    }
+
+    @Test
+    void updateAddress_addressNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(44L, customer)).thenReturn(Optional.empty());
+        AddressRequest req = new AddressRequest("a","b","c","d","e","f",false);
+        assertThrows(IllegalArgumentException.class, () -> service.updateAddress(1L, 44L, req));
+    }
+
+    @Test
+    void patchAddress_partialUpdate() {
+        Address addr = new Address();
+        addr.setId(55L);
+        addr.setCustomer(customer);
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(55L, customer)).thenReturn(Optional.of(addr));
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> i.getArgument(0));
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("city", "NewCity");
+        updates.put("default", true);
+
+        AddressResponse res = service.patchAddress(1L, 55L, updates);
+        assertEquals("NewCity", res.city());
+        assertTrue(res.isDefault());
+    }
+
+    @Test
+    void patchAddress_customerNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class,
+                () -> service.patchAddress(1L, 55L, Map.of("city", "X")));
+    }
+
+    @Test
+    void patchAddress_addressNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(55L, customer)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class,
+                () -> service.patchAddress(1L, 55L, Map.of("city", "X")));
+    }
+
+    @Test
+    void deleteAddress_success() {
+        Address addr = new Address();
+        addr.setId(66L);
+        addr.setCustomer(customer);
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(66L, customer)).thenReturn(Optional.of(addr));
+
+        service.deleteAddress(1L, 66L);
+        verify(addressRepository).delete(addr);
+    }
+
+    @Test
+    void deleteAddress_customerNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.deleteAddress(1L, 66L));
+    }
+
+    @Test
+    void deleteAddress_addressNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(66L, customer)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.deleteAddress(1L, 66L));
+    }
+    @Test
+    void addAddress_notFirstAndNotDefault() {
+        AddressRequest req = new AddressRequest("l1", "l2", "city", "st", "123", "IN", false);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.countByCustomer(customer)).thenReturn(1L);
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> {
+            Address a = i.getArgument(0);
+            a.setId(12L);
+            return a;
         });
-        assertEquals("Invalid email or password", ex.getMessage());
-    }
-
-    // ==================== Authenticate ====================
-    @Test
-    void testAuthenticateSuccess() {
-        final String token = "token123";
-
-        when(jwtUtil.validateToken(token)).thenReturn(true);
-        when(jwtUtil.extractCustomerId(token)).thenReturn(1L);
-
-        Customer c = new Customer();
-        when(customerRepo.findById(1L)).thenReturn(Optional.of(c));
-
-        Customer result = service.authenticate(token);
-        assertEquals(c, result);
+        AddressResponse res = service.addAddress(1L, req);
+        assertFalse(res.isDefault());
     }
 
     @Test
-    void testAuthenticateInvalidToken() {
-        when(jwtUtil.validateToken("token123")).thenReturn(false);
+    void patchAddress_updateAllFields() {
+        Address addr = new Address();
+        addr.setId(77L);
+        addr.setCustomer(customer);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(77L, customer)).thenReturn(Optional.of(addr));
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> i.getArgument(0));
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                service.authenticate("token123");
-            }
-        });
-        assertEquals("Invalid or expired token", ex.getMessage());
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("line1", "L1");
+        updates.put("line2", "L2");
+        updates.put("city", "CityX");
+        updates.put("state", "STX");
+        updates.put("postalCode", "99999");
+        updates.put("country", "CountryX");
+        updates.put("default", true);
+
+        AddressResponse res = service.patchAddress(1L, 77L, updates);
+
+        assertEquals("L1", res.line1());
+        assertEquals("L2", res.line2());
+        assertEquals("CityX", res.city());
+        assertEquals("STX", res.state());
+        assertEquals("99999", res.postalCode());
+        assertEquals("CountryX", res.country());
+        assertTrue(res.isDefault());
     }
 
     @Test
-    void testAuthenticateMissingCustomerId() {
-        when(jwtUtil.validateToken("token123")).thenReturn(true);
-        when(jwtUtil.extractCustomerId("token123")).thenReturn(null);
+    void patchAddress_noUpdates() {
+        Address addr = new Address();
+        addr.setId(78L);
+        addr.setCustomer(customer);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(78L, customer)).thenReturn(Optional.of(addr));
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> i.getArgument(0));
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                service.authenticate("token123");
-            }
-        });
-        assertEquals("Invalid token - missing customer id", ex.getMessage());
+        AddressResponse res = service.patchAddress(1L, 78L, Collections.emptyMap());
+        assertNotNull(res);
     }
 
     @Test
-    void testAuthenticateCustomerNotFound() {
-        when(jwtUtil.validateToken("token123")).thenReturn(true);
-        when(jwtUtil.extractCustomerId("token123")).thenReturn(1L);
-        when(customerRepo.findById(1L)).thenReturn(Optional.empty());
+    void unsetOtherDefaults_changesOtherAddresses() {
+        Address def1 = new Address();
+        def1.setId(100L);
+        def1.setCustomer(customer);
+        def1.setDefault(true);
 
-        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                service.authenticate("token123");
-            }
-        });
-        assertEquals("Customer not found", ex.getMessage());
-    }
+        Address keep = new Address();
+        keep.setId(200L);
+        keep.setCustomer(customer);
+        keep.setDefault(true);
 
-    // ==================== Add Address ====================
-    // ==================== Add Address ====================
-    @Test
-    void testAddAddressFirstDefault() {
-        final Long customerId = 1L;
-        final Customer c = new Customer();
-        c.setId(customerId);
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(addressRepository.findByIdAndCustomer(200L, customer)).thenReturn(Optional.of(keep));
+        when(addressRepository.findByCustomer(same(customer)))
+                .thenReturn(Arrays.asList(def1, keep));
+        when(addressRepository.save(any(Address.class))).thenAnswer(i -> i.getArgument(0));
 
-        when(customerRepo.findById(customerId)).thenReturn(Optional.of(c));
-        when(addressRepo.findByCustomer(c)).thenReturn(new ArrayList<Address>());
+        service.setDefaultAddress(1L, 200L);
 
-        AddressRequest req = new AddressRequest("Line1", "Line2" ,"City", "State", "12345", "Country",false);
-        final Address saved = new Address();
-        saved.setId(1L);
-        saved.setCustomer(c);
-        saved.setLine1("Line1");
-        saved.setDefault(true);
-
-        when(addressRepo.save(any(Address.class))).thenReturn(saved);
-
-        AddressResponse resp = service.addAddress(customerId, req);
-
-        assertTrue(resp.isDefault());
-        assertEquals("Line1", resp.line1());
-    }
-
-    @Test
-    void testAddAddressNonExistentCustomer() {
-        when(customerRepo.findById(1L)).thenReturn(Optional.empty());
-
-        Exception ex = assertThrows(IllegalArgumentException.class, new Executable() {
-            @Override
-            public void execute() throws Throwable {
-                service.addAddress(1L, new AddressRequest("L1", "Line2","C", "S", "P", "CN", false));
-            }
-        });
-        assertEquals("Customer not found", ex.getMessage());
-    }
-
-    // ==================== List Addresses ====================
-    @Test
-    void testListAddressesEmpty() {
-        final Long customerId = 1L;
-        final Customer c = new Customer();
-        when(customerRepo.findById(customerId)).thenReturn(Optional.of(c));
-        when(addressRepo.findByCustomer(c)).thenReturn(new ArrayList<Address>());
-
-        List<AddressResponse> result = service.listAddresses(customerId);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void testListAddressesMultiple() {
-        final Long customerId = 1L;
-        final Customer c = new Customer();
-        when(customerRepo.findById(customerId)).thenReturn(Optional.of(c));
-
-        final Address a1 = new Address();
-        a1.setId(1L);
-        a1.setLine1("L1");
-        a1.setDefault(true);
-
-        final Address a2 = new Address();
-        a2.setId(2L);
-        a2.setLine1("L2");
-        a2.setDefault(false);
-
-        when(addressRepo.findByCustomer(c)).thenReturn(Arrays.asList(a1, a2));
-
-        List<AddressResponse> result = service.listAddresses(customerId);
-        assertEquals(2, result.size());
-        assertTrue(result.get(0).isDefault());
-    }
-
-    // ==================== Set Default Address ====================
-    @Test
-    void testSetDefaultAddress() {
-        final Long customerId = 1L;
-        final Long addressId = 2L;
-        final Customer c = new Customer();
-        when(customerRepo.findById(customerId)).thenReturn(Optional.of(c));
-
-        final Address a1 = new Address();
-        a1.setId(1L);
-        a1.setDefault(true);
-
-        final Address a2 = new Address();
-        a2.setId(addressId);
-        a2.setDefault(false);
-
-        when(addressRepo.findByIdAndCustomer(addressId, c)).thenReturn(Optional.of(a2));
-        when(addressRepo.findByCustomer(c)).thenReturn(Arrays.asList(a1, a2));
-
-        service.setDefaultAddress(customerId, addressId);
-
-        assertTrue(a2.isDefault());
-        assertFalse(a1.isDefault());
+        assertFalse(def1.isDefault(), "Old default should be unset");
+        assertTrue(keep.isDefault(), "New default should remain set");
     }
 }
